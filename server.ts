@@ -30,7 +30,7 @@ const supabaseKey = process.env.SUPABASE_KEY;
 let usingSupabase: boolean = false;
 
 if (!supabaseKey) {
-  console.error("No supabase key found! Unable to continue.");
+  console.error("No supabase key found!");
   // process.exit(1); // Exit with a non-zero code to indicate an error
 } else {
   usingSupabase = true;
