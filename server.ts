@@ -13,7 +13,7 @@ const http = require('http'); // Get the HTTP package
 const server = http.createServer(app); // Create an HTTP server using the new express app as its handler
 const { Server } = require("socket.io") // Get the Socket.IO package
 
-const io = new Server(server, {cors: {  origin: [ "https://supkittymeow.github.io", "https://goobapp.org", 'http://localhost:5173' ]}}); // Create a new Socket.IO instance using the created HTTP server
+const io = new Server(server, {cors: {  origin: [ "https://goobapp.github.io", "https://goobapp.org", 'http://localhost:5173' ]}}); // Create a new Socket.IO instance using the created HTTP server
 
 
 import { createClient } from '@supabase/supabase-js';
