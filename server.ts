@@ -7,59 +7,71 @@ import { Socket } from "socket.io";
 import ChatMessage from "./types/ChatMessageObject";
 
 const PORT = process.env.PORT || 3000; // This will mean if in a server, use its port, and if it can't find anyting, use default port 3000
-const express = require('express'); // Get the Express.js package
+const express = require("express"); // Get the Express.js package
 const app = express(); // Create a new express app instance
-const http = require('http'); // Get the HTTP package
+const http = require("http"); // Get the HTTP package
 const server = http.createServer(app); // Create an HTTP server using the new express app as its handler
-const { Server } = require("socket.io") // Get the Socket.IO package
+const { Server } = require("socket.io"); // Get the Socket.IO package
 
-const io = new Server(server, {cors: {  origin: [ "https://goobapp.github.io", "https://goobapp.org", 'http://localhost:5173' ]}}); // Create a new Socket.IO instance using the created HTTP server
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "https://goobapp.github.io",
+      "https://goobapp.org",
+      "http://localhost:5173", // For developement
+    ],
+  },
+}); // Create a new Socket.IO instance using the created HTTP server
 
+import { createClient } from "@supabase/supabase-js";
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'https://wfdcqaqihwsilzegcknq.supabase.co'
-const supabaseKey = process.env.SUPABASE_KEY
-let usingSupabase: boolean = false
+const supabaseUrl = "https://wfdcqaqihwsilzegcknq.supabase.co";
+const supabaseKey = process.env.SUPABASE_KEY;
+let usingSupabase: boolean = false;
 
 if (!supabaseKey) {
-  console.error("No supabase key found! Unable to continue.")
+  console.error("No supabase key found! Unable to continue.");
   // process.exit(1); // Exit with a non-zero code to indicate an error
-}
-else {
+} else {
   usingSupabase = true;
-  const supabase = createClient(supabaseUrl, supabaseKey)
+  const supabase = createClient(supabaseUrl, supabaseKey);
 }
-const getRandomInt = (max: number): string => { // temp
+const getRandomInt = (max: number): string => {
+  // temp
   return (Math.floor(Math.random() * max) + 1).toString();
-}
+};
 
-const rateLimiter = new RateLimiterMemory(
-{
+const rateLimiter = new RateLimiterMemory({
   points: 10, // 10 points
   duration: 3, // per 3 seconds
 });
 
-io.on('connection', (socket: Socket) => { // Receive this when a user has ANY connection event to the Socket.IO server
-  console.log('a user connected');
-  socket.emit('get user id', getRandomInt(100000)) // TODO: login flow. this is temp
-  
-  socket.on('message sent', async (msg: ChatMessage) => { // Received when the "message sent" gets called from a client
-      try {
-        await rateLimiter.consume(socket.handshake.address); // consume 1 point per event from IP
-        io.emit('client receive message', msg); // Emit it to everyone else!
-      } catch(rejRes) {
-        // no available points to consume
-        // emit error or warning message
-        socket.emit('rate limited');
+io.on("connection", (socket: Socket) => {
+  // Receive this when a user has ANY connection event to the Socket.IO server
+  console.log("a user connected");
+  socket.emit("get user id", getRandomInt(100000)); // TODO: login flow. this is temp
+
+  socket.on("message sent", async (msg: ChatMessage) => {
+    // Received when the "message sent" gets called from a client
+    try {
+      await rateLimiter.consume(socket.id); // consume 1 point per event per each user ID
+      if (msg.messageContent.length <= 1001) {
+        io.emit("client receive message", msg); // Emit it to everyone else!
       }
-    });
-  
-    socket.on('disconnect', (reason) => { // Called when a user is disconneted for any reason, passed along with the reason arg.
-      console.log(`User disconnected because: ${reason}`);
-    });
+    } catch (rejRes) {
+      // No available points to consume
+      // Emit error or warning message
+      socket.emit("rate limited");
+    }
   });
 
-server.listen(PORT, () => { // Start the server at the chosen port
+  socket.on("disconnect", (reason) => {
+    // Called when a user is disconneted for any reason, passed along with the reason arg.
+    console.log(`User disconnected because: ${reason}`);
+  });
+});
+
+server.listen(PORT, () => {
+  // Start the server at the chosen port
   console.log(`listening on *:${PORT}`);
 });
