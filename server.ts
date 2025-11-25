@@ -46,6 +46,11 @@ const rateLimiter = new RateLimiterMemory({
   duration: 3, // per 5 seconds
 });
 
+const immediateRateLimiter = new RateLimiterMemory({
+  points: 1, // 1 message
+  duration: 0.2, // per 0.2 seconds
+});
+
 io.on("connection", (socket: Socket) => {
   // Receive this when a user has ANY connection event to the Socket.IO server
   console.log("a user connected");
@@ -55,6 +60,7 @@ io.on("connection", (socket: Socket) => {
     // Received when the "message sent" gets called from a client
     try {
       await rateLimiter.consume(socket.id); // consume 1 point per event per each user ID
+      await immediateRateLimiter.consume(socket.id); // do this for immediate stuff (no spamming every 0.1 seconds)
       if (msg.messageContent.length <= 1001) {
         io.emit("client receive message", msg); // Emit it to everyone else!
       }
