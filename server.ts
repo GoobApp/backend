@@ -36,10 +36,6 @@ if (!supabaseKey) {
   usingSupabase = true;
   const supabase = createClient(supabaseUrl, supabaseKey);
 }
-const getRandomInt = (max: number): string => {
-  // temp
-  return (Math.floor(Math.random() * max) + 1).toString();
-};
 
 const rateLimiter = new RateLimiterMemory({
   points: 7, // 7 messages
@@ -54,7 +50,6 @@ const immediateRateLimiter = new RateLimiterMemory({
 io.on("connection", (socket: Socket) => {
   // Receive this when a user has ANY connection event to the Socket.IO server
   console.log("a user connected");
-  socket.emit("get user id", getRandomInt(100000)); // TODO: login flow. this is temp
 
   socket.on("message sent", async (msg: ChatMessage) => {
     // Received when the "message sent" gets called from a client
