@@ -58,7 +58,7 @@ io.on("connection", (socket: Socket) => {
     try {
       await rateLimiter.consume(session.user.id); // consume 1 point per event per each user ID
       await immediateRateLimiter.consume(session.user.id); // do this for immediate stuff (no spamming every 0.1 seconds)
-      if (msg.messageContent.length <= 1001) {
+      if (msg.messageContent.length <= 1201) {
         io.emit("client receive message", msg); // Emit it to everyone else!
       }
     } catch (rejRes) {
