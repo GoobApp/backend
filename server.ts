@@ -66,7 +66,7 @@ io.on("connection", (socket: Socket) => {
     }
 
     const recentMessages: ChatMessage[] = data.map((message) => ({
-      userDisplayName: message.user,
+      userDisplayName: message.username_snapshot,
       userProfilePicture: message.profile_picture_snapshot,
       userUUID: message.user_uuid,
       messageContent: message.message_content,
