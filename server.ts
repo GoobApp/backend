@@ -58,7 +58,7 @@ io.on("connection", (socket: Socket) => {
       .from("messages")
       .select("*")
       .order("message_id", { ascending: false })
-      .limit(30); // Change to number of messages you want to give to the user, but PLEASE do not let the user pick aaaaaaa NOT A GOOD IDEA anyways
+      .limit(25); // Change to number of messages you want to give to the user, but PLEASE do not let the user pick aaaaaaa NOT A GOOD IDEA anyways
 
     if (error) {
       console.error("Could not get recent messages: " + error);
