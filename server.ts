@@ -66,7 +66,11 @@ io.on("connection", (socket: Socket) => {
       return;
     }
 
-    socket.emit("receive recent messages", data, Object.values(activeUsers));
+    socket.emit("receive recent messages", data);
+  });
+
+  socket.on("request active users", async () => {
+    socket.emit("receive active users", Object.values(activeUsers));
   });
 
   socket.on("message sent", async (msg: ChatMessage, session: Session) => {
