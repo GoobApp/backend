@@ -99,7 +99,10 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("edit message", async (newId: number, newContent: string) => {
-    if (usingSupabase) {
+    console.log("message edited");
+    if (!usingSupabase) {
+      io.emit("message edited", newId, newContent);
+    } else {
       if ((await verifyValidity(socket)) != true) return;
       const token = socket.handshake.auth.token;
       const {
