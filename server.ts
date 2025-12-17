@@ -99,7 +99,6 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("edit message", async (newId: number, newContent: string) => {
-    console.log("message edited");
     if (!usingSupabase) {
       io.emit("message edited", newId, newContent);
     } else {
@@ -123,15 +122,17 @@ io.on("connection", (socket: Socket) => {
         .eq("message_id", newId);
 
       if (error) {
-        console.error("Could not update message: " + error);
+        console.error("Could not update message (just couldn't idk): " + error);
       } else {
         const {
           data: { user },
           error: newError,
-        } = await supabase.auth.getUser();
+        } = await supabase.auth.getUser(socket.handshake.auth.token);
 
         if (newError) {
-          console.error("Could not update message: " + newError);
+          console.error(
+            "Could not update message (user verification failed!): " + newError
+          );
         } else {
           io.emit("message edited", newId, newContent);
         }
