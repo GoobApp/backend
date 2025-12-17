@@ -142,11 +142,20 @@ io.on("connection", (socket: Socket) => {
     if (msg.messageContent.length <= 1201) {
       if (usingSupabase) {
         // Only insert if actually using Supabase!
-        const { error } = await supabase.from("messages").insert({
-          // Insert a message into the Supabase table
-          user_uuid: msg.userUUID,
-          message_content: msg.messageContent,
-        });
+        const { data, error } = await supabase
+          .from("messages")
+          .insert({
+            // Insert a message into the Supabase table
+            user_uuid: msg.userUUID,
+            message_content: msg.messageContent,
+          })
+          .select("message_id");
+
+        if (!data) {
+          return;
+        }
+
+        msg.messageId = data[0].message_id;
 
         if (error) {
           console.error("Could not insert message: " + error);
