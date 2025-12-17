@@ -6,7 +6,7 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
 import { Socket } from "socket.io";
 import ChatMessage from "./types/ChatMessageObject";
 
-const PORT = process.env.PORT || 3000; // This will mean if in a server, use its port, and if it can't find anyting, use default port 3000
+const PORT = process.env.PORT || 3000; // This will mean if in a server, use its port, and if it can't find anything, use default port 3000
 const express = require("express"); // Get the Express.js package
 const app = express(); // Create a new express app instance
 const http = require("http"); // Get the HTTP package
@@ -55,22 +55,22 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("request recent messages", async () => {
     if (!usingSupabase) return; // Can later warn not using database but meh not right now
-    const { data, error } = await supabase
+    const { data: messagesData, error: messagesError } = await supabase
       .from("messages")
-      .select("*")
+      .select("*,profiles(username,profile_image_url,role)")
       .order("message_id", { ascending: false })
       .limit(25); // Change to number of messages you want to give to the user, but PLEASE do not let the user pick aaaaaaa NOT A GOOD IDEA anyways
 
-    if (error) {
-      console.error("Could not get recent messages: " + error);
+    if (messagesError) {
+      console.error("Could not get recent messages: " + messagesError);
       return;
     }
 
-    const formattedData: ChatMessage[] = data.map((row) => {
+    const formattedData: ChatMessage[] = messagesData.map((row) => {
       return {
-        userDisplayName: row.username_snapshot,
+        userDisplayName: row.profiles.username,
+        userProfilePicture: row.profiles.profile_image_url,
         userUUID: row.user_uuid,
-        userProfilePicture: row.profile_picture_snapshot,
         messageContent: row.message_content,
         messageId: row.message_id,
         messageTime: row.created_at,
@@ -97,8 +97,6 @@ io.on("connection", (socket: Socket) => {
           // Only insert if actually using Supabase!
           const { error } = await supabase.from("messages").insert({
             // Insert a message into the Supabase table
-            username_snapshot: msg.userDisplayName,
-            profile_picture_snapshot: msg.userProfilePicture,
             user_uuid: msg.userUUID,
             message_content: msg.messageContent,
           });
