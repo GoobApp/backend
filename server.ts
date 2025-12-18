@@ -126,7 +126,12 @@ io.on("connection", (socket: Socket) => {
     if (error) {
       console.error("Error while attempting to give user role: " + error);
     } else {
-      activeUsers[userUUID].userRole = role;
+      for (const [socketId, profile] of Object.entries(activeUsers)) {
+        if (profile.userUUID == userUUID) {
+          activeUsers[socketId].userRole = role;
+          return;
+        }
+      }
     }
 
     // TODO: (maybe) send an update to everyone so they don't have to reload to see it
