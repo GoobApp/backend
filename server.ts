@@ -102,6 +102,32 @@ io.on("connection", (socket: Socket) => {
     socket.emit("receive active users", Object.values(activeUsers));
   });
 
+  socket.on("delete message", async (messageID: number ) => {
+    if ((await verifyValidity(socket)) != true) return;
+    const { error } = await supabase.from("messages").delete().eq("message_id", messageID);
+    if (error)
+    {
+      console.error("Error while attempting to delete message: " + error);
+      return;
+    }
+    else
+    {
+      io.emit("deleted message", messageID);
+    }
+  });
+
+  socket.on("give user role", async (userUUID: string, role: string) => {
+    if ((await verifyValidity(socket)) != true) return;
+    const { error } = await supabase.from("profiles").update({role: role != "" ? role : null}).eq("user_uuid", userUUID);
+
+    if (error)
+    {
+      console.error("Error while attempting to give user role: " + error);
+    }
+
+    // TODO: (maybe) send an update to everyone so they don't have to reload to see it
+  });
+
   socket.on("edit message", async (newId: number, newContent: string) => {
     if (!usingSupabase) {
       io.emit("message edited", newId, newContent);
