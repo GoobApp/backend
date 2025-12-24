@@ -355,7 +355,9 @@ io.on("connection", (socket: Socket) => {
             .single();
 
           if (!data) {
-            console.error("Supabase error!");
+            console.error(
+              `Supabase error: ${error.message}! Hint: ${error.hint}`
+            );
             return;
           }
 
