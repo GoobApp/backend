@@ -331,7 +331,7 @@ io.on("connection", (socket: Socket) => {
         return response.json();
       })
       .then(async (img) => {
-        console.log(img.url);
+        console.log(img.data.url);
         let message = {
           userDisplayName: "Image",
           userProfilePicture: "",
