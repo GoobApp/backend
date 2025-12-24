@@ -27,14 +27,14 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import UserProfile from "./types/UserProfileObject";
 
 require("dotenv").config();
-const SUPABASE_URL = "https://wfdcqaqihwsilzegcknq.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 let usingSupabase: boolean = false;
 let supabase: SupabaseClient;
 let activeUsers: { [socketId: string]: UserProfile } = {};
 
-if (!SUPABASE_KEY) {
+if (!SUPABASE_KEY || !SUPABASE_URL) {
   console.error("No supabase key found!");
   // process.exit(1); // Exit with a non-zero code to indicate an error
 } else {
