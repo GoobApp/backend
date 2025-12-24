@@ -334,7 +334,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
       return;
     }
 
-    user = await verifyValidity(socketToken);
+    user = await verifyValidity(socketToken.replace("Bearer ", ""));
     if (user.role == "tokenError") {
       res.sendStatus(403); // error 403: forbidden
       return;
