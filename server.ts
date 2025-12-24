@@ -351,7 +351,9 @@ io.on("connection", (socket: Socket) => {
               user_uuid: user.uuid,
               message_image_url: img.url,
             })
-            .select("message_id,created_at,profiles")
+            .select(
+              "message_id,created_at,profiles(username,profile_image_url)"
+            )
             .single();
 
           if (!data) {
