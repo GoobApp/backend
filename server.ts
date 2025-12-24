@@ -351,14 +351,14 @@ io.on("connection", (socket: Socket) => {
               user_uuid: user.uuid,
               message_image_url: img.url,
             })
-            .select(
-              "message_id,created_at,profiles(username,profile_image_url)"
-            )
+            .select()
             .single();
 
           if (!data) {
             console.error(
-              `Supabase error: ${error.message}! Hint: ${error.hint}`
+              error
+                ? `Supabase error: ${error.message}! Hint: ${error.hint}`
+                : "Supabase error!"
             );
             return;
           }
