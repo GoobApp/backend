@@ -349,7 +349,7 @@ io.on("connection", (socket: Socket) => {
             .insert({
               // Insert a message into the Supabase table
               user_uuid: user.uuid,
-              message_image_url: img.url,
+              message_image_url: img.data.url,
             })
             .select("*,profiles(username,profile_image_url,role)")
             .single();
