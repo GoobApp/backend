@@ -16,14 +16,24 @@ app.get("/", (req, res) => {
   res.redirect("https://goobapp.org");
 });
 
+const corsOptions = {
+  origin: [
+    "https://goobapp.pages.dev",
+    "https://goobapp.org",
+    "https://www.goobapp.org",
+    "http://localhost:5173", // For development
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Authorization", "Content-Type"],
+};
+
+import cors from "cors";
+
+app.use(cors(corsOptions));
+app.options("/upload", cors(corsOptions));
+
 const io = new Server(server, {
-  cors: {
-    origin: [
-      "https://goobapp.pages.dev",
-      "https://goobapp.org",
-      "http://localhost:5173", // For development
-    ],
-  },
+  cors: corsOptions,
 }); // Create a new Socket.IO instance using the created HTTP server
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
@@ -326,7 +336,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
     user = await verifyValidity(socketToken);
     if (user.role == "tokenError") {
-      res.sendStatus(13); // error 13: permission denied
+      res.sendStatus(403); // error 403: forbidden
       return;
     }
   } else {
