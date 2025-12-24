@@ -307,7 +307,7 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-app.post("/upload", upload.single("image"), async (req, res) => {
+app.post("upload", upload.single("image"), async (req, res) => {
   const file = req.file;
 
   if (!file) {
