@@ -624,7 +624,7 @@ io.on("connection", (socket: Socket) => {
     const user = await verifyValidity(socket.handshake.auth.token);
     if (user.role == "tokenError") return;
 
-    if (!verifyInGroup(user.uuid, dmId)) return;
+    if (!(await verifyInGroup(user.uuid, dmId))) return;
 
     if (msg.messageContent.length <= 1201) {
       if (usingSupabase) {
