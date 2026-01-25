@@ -141,41 +141,95 @@ const verifyValidity = async (
   }
 };
 
+const verifyInGroup = async (verified_uuid: string, group_id: string) => {
+  const { data, error } = await supabase
+    .from("dms_users")
+    .select("*")
+    .eq("user_uuid", verified_uuid)
+    .eq("dm_id", group_id)
+    .single();
+
+  return !(error || !data);
+};
+
+const getMessages = async (prevOldestMessageId: number | null) => {
+  if (!usingSupabase) return; // Can later warn not using database but meh not right now
+
+  const supabaseCommand = supabase
+    .from("messages")
+    .select("*,profiles(username,profile_image_url,role)")
+    .order("message_id", { ascending: false })
+    .limit(25); // Change to number of messages you want to give to the user, but PLEASE do not let the user pick aaaaaaa NOT A GOOD IDEA anyways
+  if (prevOldestMessageId != null) {
+    supabaseCommand.lt("message_id", prevOldestMessageId);
+  }
+
+  const { data: messagesData, error: messagesError } = await supabaseCommand;
+
+  if (messagesError) {
+    console.error("Could not get recent messages: " + messagesError);
+    return;
+  }
+
+  const formattedData: ChatMessage[] = messagesData.map((row) => {
+    return {
+      userDisplayName: (row.profiles && row.profiles.username) || "",
+      userProfilePicture:
+        (row.profiles && row.profiles.profile_image_url) || "",
+      userRole: (row.profiles && row.profiles.role) || "",
+      userUUID: row.user_uuid || "",
+      messageContent: row.message_content,
+      messageImageUrl: row.message_image_url,
+      messageId: row.message_id,
+      messageTime: row.created_at,
+      isEdited: row.is_edited,
+    };
+  });
+
+  return formattedData;
+};
+
 io.on("connection", (socket: Socket) => {
   // Receive this when a user has ANY connection event to the Socket.IO server
-
   socket.on("request recent messages", async () => {
     const role = await verifyValidity(socket.handshake.auth.token);
     if (role.role == "tokenError") return;
 
-    if (!usingSupabase) return; // Can later warn not using database but meh not right now
-    const { data: messagesData, error: messagesError } = await supabase
-      .from("messages")
-      .select("*,profiles(username,profile_image_url,role)")
-      .order("message_id", { ascending: false })
-      .limit(25); // Change to number of messages you want to give to the user, but PLEASE do not let the user pick aaaaaaa NOT A GOOD IDEA anyways
+    socket.emit("receive recent messages", await getMessages(null));
+  });
 
-    if (messagesError) {
-      console.error("Could not get recent messages: " + messagesError);
+  socket.on("load more messages", async (prevOldestMessageId) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    if (!usingSupabase) {
+      console.log("Requesting older messages!");
+      let msg: ChatMessage = {
+        messageContent: "yo",
+        messageId: Date.now(), // This gets autoset by supabase but no reason not to set it also here (local testing)
+        messageImageUrl: "",
+        userRole: "Bot",
+        messageTime: Date.now(),
+        userDisplayName: "Goofy Goober",
+        userProfilePicture:
+          "https://raw.githubusercontent.com/GoobApp/backend/refs/heads/main/goofy-goober.png",
+        userUUID: gooberUUID,
+        isEdited: false,
+      };
+      socket.emit("receive older messages", [
+        msg,
+        msg,
+        msg,
+        msg,
+        msg,
+        msg,
+        msg,
+        msg,
+      ]);
       return;
     }
 
-    const formattedData: ChatMessage[] = messagesData.map((row) => {
-      return {
-        userDisplayName: (row.profiles && row.profiles.username) || "",
-        userProfilePicture:
-          (row.profiles && row.profiles.profile_image_url) || "",
-        userRole: (row.profiles && row.profiles.role) || "",
-        userUUID: row.user_uuid || "",
-        messageContent: row.message_content,
-        messageImageUrl: row.message_image_url,
-        messageId: row.message_id,
-        messageTime: row.created_at,
-        isEdited: row.is_edited,
-      };
-    });
-
-    socket.emit("receive recent messages", formattedData);
+    socket.emit("receive older messages", getMessages(prevOldestMessageId));
   });
 
   socket.on("request active users", async () => {
@@ -267,7 +321,9 @@ io.on("connection", (socket: Socket) => {
       .or("role.is.null,role.neq.Owner");
 
     if (error) {
-      console.error("Error while attempting to give user role: " + error);
+      console.error(
+        "Error while attempting to give user role: " + error.message,
+      );
     } else {
       for (const [socketId, profile] of Object.entries(activeUsers)) {
         if (profile.userUUID == userUUID) {
@@ -337,6 +393,108 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
+  socket.on("request recent groups", async () => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    const { data, error } = await supabase
+      .from("dms_users")
+      .select("*,dms(dm_name,dm_icon)")
+      .eq("user_uuid", role.uuid)
+      .order("dm_id", { ascending: false });
+    // .limit(25); // you might wanna limit, not sure
+
+    if (error) {
+      console.warn("Supabase error getting recent groups: " + error.message);
+      return;
+    }
+
+    let newData: Group[] = [];
+    data.forEach((group) => {
+      newData.push({
+        groupId: group.dm_id,
+        groupName: group.dms.dm_name,
+      });
+    });
+
+    socket.emit("recent groups requested", newData);
+  });
+
+  socket.on("create group", async (groupName) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    if (usingSupabase) {
+      const { data, error } = await supabase
+        .from("dms")
+        .insert({
+          // Insert a message into the Supabase table
+          dm_name: groupName,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        console.warn("Supabase error creating group: " + error.message);
+      }
+
+      if (!data) {
+        return;
+      }
+
+      const { error: usersError } = await supabase
+        .from("dms_users")
+        .insert({
+          // Insert a message into the Supabase table
+          user_uuid: role.uuid,
+          dm_id: data.dm_id,
+        })
+        .single();
+
+      if (usersError) {
+        console.warn(
+          "Supabase error adding user to group: " + usersError.message,
+        );
+      }
+
+      const newGroup: Group = {
+        groupId: data.dm_id,
+        groupName: data.dm_name,
+      };
+
+      socket.emit("created new group", newGroup);
+    }
+  });
+
+  socket.on("delete group", async (groupId) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    if (!verifyInGroup(role.uuid, groupId)) return;
+
+    if (usingSupabase) {
+      const { error } = await supabase
+        .from("dms")
+        .delete()
+        .eq("dm_id", groupId);
+
+      if (error) {
+        console.warn("Supabase error creating group: " + error.message);
+      }
+
+      socket.emit("deleted group", groupId);
+    }
+  });
+
+  socket.on("join group room", async (groupId) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    if (!verifyInGroup(role.uuid, groupId)) return;
+
+    socket.join(groupId);
+  });
+
   const gooberUUID = "d63332a2-cb49-4da0-9095-68e1ee8f20e9"; // feels bad putting a uuid in there like this but whatever
 
   const SendMessageToAiIfNeeded = async (message: ChatMessage) => {
@@ -399,7 +557,6 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("message sent", async (msg: ChatMessage) => {
     // Received when the "message sent" gets called from a client
-
     const user = await verifyValidity(socket.handshake.auth.token);
     if (user.role == "tokenError") return;
 
@@ -444,7 +601,7 @@ io.on("connection", (socket: Socket) => {
         io.emit("client receive message", msg); // Emit it to everyone else!
 
         if (error) {
-          console.error("Could not insert message: " + error);
+          console.error("Could not insert message: " + error.message);
         }
 
         recentMessages.push(msg);
@@ -460,6 +617,199 @@ io.on("connection", (socket: Socket) => {
         SendMessageToAiIfNeeded(msg);
       }
     }
+  });
+
+  socket.on("dm message sent", async (msg: ChatMessage, dmId) => {
+    // Received when the "message sent" gets called from a client
+    const user = await verifyValidity(socket.handshake.auth.token);
+    if (user.role == "tokenError") return;
+
+    if (!verifyInGroup(user.uuid, dmId)) return;
+
+    if (msg.messageContent.length <= 1201) {
+      if (usingSupabase) {
+        if (user.role != "Owner") {
+          try {
+            await rateLimiter.consume(socket.id); // consume 1 point per event per each user ID
+            await immediateRateLimiter.consume(socket.id); // do this for immediate stuff (no spamming every 0.1 seconds)
+          } catch (rejRes) {
+            // No available points to consume
+            // Emit error or warning message
+            socket.emit("rate limited");
+            return;
+          }
+        }
+
+        // Only insert if actually using Supabase!
+        const { data, error } = await supabase
+          .from("dms_messages")
+          .insert({
+            // Insert a message into the Supabase table
+            user_uuid: user.uuid,
+            message_content: msg.messageContent,
+            message_image_url: msg.messageImageUrl,
+            dm_id: dmId,
+          })
+          .select("*,profiles(username,profile_image_url)")
+          .single();
+
+        if (error) {
+          console.warn("Supabase error on dm message sent: " + error.message);
+        }
+
+        if (!data) {
+          return;
+        }
+
+        msg.messageId = data.message_id;
+        msg.messageContent = data.message_content;
+        msg.isEdited = false;
+        msg.messageTime = data.created_at;
+        msg.userUUID = data.user_uuid;
+        msg.userDisplayName = data.profiles.username;
+        msg.userProfilePicture = data.profiles.profile_image_url;
+
+        io.to(dmId).emit("dm receive message", msg); // Emit it to everyone else!
+
+        if (error) {
+          console.error("Could not insert message: " + error.message);
+        }
+
+        recentMessages.push(msg);
+        if (recentMessages.length > maxMessageContext) recentMessages.shift();
+
+        SendMessageToAiIfNeeded(msg);
+      } else {
+        console.log("sending message!");
+        io.to(dmId).emit("dm receive message", msg); // Emit it to everyone else!
+        recentMessages.push(msg);
+        if (recentMessages.length > maxMessageContext) recentMessages.shift();
+
+        SendMessageToAiIfNeeded(msg);
+      }
+    }
+  });
+
+  socket.on("dm request recent messages", async (dmId) => {
+    const user = await verifyValidity(socket.handshake.auth.token);
+    if (user.role == "tokenError") return;
+
+    if (!verifyInGroup(user.uuid, dmId)) return;
+
+    const { data, error } = await supabase
+      .from("dms_messages")
+      .select("*,profiles(username,profile_image_url,role)")
+      .eq("dm_id", dmId)
+      .order("message_id", { ascending: false })
+      .limit(25); // Change to number of messages you want to give to the user, but PLEASE do not let the user pick aaaaaaa NOT A GOOD IDEA anyways;
+
+    if (error) {
+      console.warn(
+        "Supabase error on dm request recent messages: " + error.message,
+      );
+      return;
+    }
+
+    if (!data) {
+      console.warn("Supabase error on dm request no data for some reason idk");
+      return;
+    }
+
+    const formattedData: ChatMessage[] = data.map((row) => {
+      return {
+        userDisplayName: (row.profiles && row.profiles.username) || "",
+        userProfilePicture:
+          (row.profiles && row.profiles.profile_image_url) || "",
+        userRole: (row.profiles && row.profiles.role) || "",
+        userUUID: row.user_uuid || "",
+        messageContent: row.message_content,
+        messageImageUrl: row.message_image_url,
+        messageId: row.message_id,
+        messageTime: row.created_at,
+        isEdited: row.is_edited,
+      };
+    });
+
+    socket.emit("dm recent messages received", formattedData);
+  });
+
+  socket.on("dm request all users", async (groupId) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    if (!verifyInGroup(role.uuid, groupId)) return;
+
+    const { data, error } = await supabase
+      .from("dms_users")
+      .select("profiles(profile_image_url,username,role)")
+      .eq("dm_id", groupId); // Maybe order later? idk
+
+    if (!data) {
+      return;
+    }
+
+    const formattedData: UserProfile[] = data.map((element) => {
+      const profile = Array.isArray(element.profiles)
+        ? element.profiles[0]
+        : element.profiles; // Idk man supabase is hard
+      return {
+        username: profile.username,
+        userProfilePicture: profile.profile_image_url,
+        userRole: profile.role,
+        userID: "",
+        userUUID: "",
+      };
+    });
+
+    socket.emit("dm all users received", formattedData);
+  });
+
+  socket.on("add DM user", async (user, groupId) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+
+    if (!verifyInGroup(role.uuid, groupId)) return;
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("user_uuid")
+      .eq("username", user)
+      .single();
+
+    if (!data) {
+      socket.emit("add DM user error", "User not found!");
+      return;
+    }
+
+    const { data: addData, error: addError } = await supabase
+      .from("dms_users")
+      .insert({
+        // Insert a message into the Supabase table
+        user_uuid: data.user_uuid,
+        dm_id: groupId,
+      })
+      .select("*,profiles(username,profile_image_url,role)")
+      .single();
+
+    if (addError) {
+      socket.emit("add DM user error", "User already in the group!");
+      return; // I would have like a "if duplicate" check but I'm too lazy
+    }
+
+    if (!data) {
+      socket.emit("add DM user error", "Unknown error!");
+      return; // I would have like a "if duplicate" check but I'm too lazy
+    }
+
+    const userData: UserProfile = {
+      username: addData.profiles.username,
+      userProfilePicture: addData.profiles.profile_image_url,
+      userRole: addData.profiles.role,
+      userID: "",
+      userUUID: "",
+    };
+
+    io.to(groupId).emit("DM add new user", userData);
   });
 
   socket.on("disconnect", (reason) => {
@@ -532,11 +882,13 @@ server.listen(PORT, () => {
 });
 
 import multer from "multer";
+import Group from "./types/Group";
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 app.post("/upload", upload.single("image"), async (req, res) => {
   const file = req.file;
+  const groupId = req.body.groupId;
 
   if (!file) {
     if (!usingSupabase) console.log("No file!");
@@ -566,11 +918,6 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     res.sendStatus(400); // error 400: can't understand request
     return;
   }
-
-  // const fileBlob = new Blob([file], { type: fileType });
-  // const formData = new FormData();
-  // formData.append("image", file.buffer);
-  // formData.append()
 
   const fileBlob = new Blob([new Uint8Array(file.buffer)], {
     type: file.mimetype,
@@ -618,15 +965,28 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
       // Only insert if actually using Supabase!
       if (usingSupabase) {
-        const { data, error } = await supabase
-          .from("messages")
-          .insert({
-            // Insert a message into the Supabase table
+        let thingToInsert = {};
+
+        if (groupId)
+          thingToInsert = {
             user_uuid: user.uuid,
             message_image_url: img.data.url,
-          })
+            dm_id: groupId,
+          };
+        else {
+          thingToInsert = {
+            user_uuid: user.uuid,
+            message_image_url: img.data.url,
+          };
+        }
+
+        let supabaseCommand = supabase
+          .from(groupId ? "dms_messages" : "messages")
+          .insert(thingToInsert)
           .select("*,profiles(username,profile_image_url,role)")
           .single();
+
+        const { data, error } = await supabaseCommand;
 
         if (!data) {
           console.error(
@@ -649,16 +1009,21 @@ app.post("/upload", upload.single("image"), async (req, res) => {
         message.userRole = data.profiles.role;
 
         if (error) {
-          console.error("Could not insert message: " + error);
+          console.error("Could not insert message: " + error.message);
         } else {
-          io.emit("client receive message", message); // Emit it to everyone else!
+          if (groupId)
+            io.to(groupId).emit("dm receive message", message); // Emit it to everyone else in the group!
+          else io.emit("client receive message", message); // Emit it to everyone else!
           message.messageContent = "IMAGE";
           recentMessages.push(message);
           if (recentMessages.length > maxMessageContext) recentMessages.shift();
         }
       } else {
         console.log("Image uploaded: " + img.data.url);
-        io.emit("client receive message", message); // Emit it to everyone else!
+
+        if (groupId)
+          io.to(groupId).emit("dm receive message", message); // Emit it to everyone else in the group!
+        else io.emit("client receive message", message); // Emit it to everyone else!
         message.messageContent = "IMAGE";
         recentMessages.push(message);
         if (recentMessages.length > maxMessageContext) recentMessages.shift();

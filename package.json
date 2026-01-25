@@ -1,6 +1,6 @@
 {
   "name": "goobapp-backend",
-  "version": "1.1.3",
+  "version": "1.2",
   "description": "The backend for GoobApp!",
   "main": "dist/server.js",
   "scripts": {
