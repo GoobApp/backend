@@ -26,7 +26,8 @@ alter table "public"."dms_messages" enable row level security;
 
   create table "public"."dms_users" (
     "user_uuid" uuid not null default auth.uid(),
-    "dm_id" bigint not null
+    "dm_id" bigint not null,
+    PRIMARY KEY ("user_uuid", "dm_id")
       );
 
 
