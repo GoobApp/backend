@@ -229,7 +229,7 @@ io.on("connection", (socket: Socket) => {
       return;
     }
 
-    socket.emit("receive older messages", getMessages(prevOldestMessageId));
+    socket.emit("receive older messages", await getMessages(prevOldestMessageId));
   });
 
   socket.on("request active users", async () => {
