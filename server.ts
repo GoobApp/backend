@@ -312,6 +312,49 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
+  socket.on("dm delete message", async (messageID: number, groupId: string) => {
+    const role = await verifyValidity(socket.handshake.auth.token);
+    if (role.role == "tokenError") return;
+    if (!(await verifyInGroup(role.uuid, groupId))) return;
+
+    if (!usingSupabase) {
+      io.to(groupId).emit("dm deleted message", messageID);
+      recentMessages.forEach((element) => {
+        if (element.messageId == messageID) {
+          delete recentMessages[recentMessages.indexOf(element)];
+        }
+      });
+
+      console.log("deleted message!");
+      return;
+    }
+
+    let responseError;
+
+    if (role.role == "Owner") {
+      const { error } = await supabase
+        .from("dms_messages")
+        .delete()
+        .eq("message_id", messageID);
+      responseError = error;
+    } else {
+      const { error } = await supabase
+        .from("dms_messages")
+        .delete()
+        .eq("user_uuid", role.uuid)
+        .eq("message_id", messageID);
+      responseError = error;
+    }
+
+    if (responseError) {
+      console.error(
+        "Error while attempting to delete message: " + responseError,
+      );
+    } else {
+      io.to(groupId).emit("dm deleted message", messageID);
+    }
+  });
+
   socket.on("give user role", async (userUUID: string, newRole: string) => {
     const user = await verifyValidity(socket.handshake.auth.token);
     if (user.role != "Owner") return;
@@ -395,6 +438,62 @@ io.on("connection", (socket: Socket) => {
       }
     }
   });
+
+  socket.on(
+    "dm edit message",
+    async (newId: number, newContent: string, groupId: string) => {
+      if (!usingSupabase) {
+        io.to(groupId).emit("dm message edited", newId, newContent);
+        recentMessages.forEach((element) => {
+          if (element.messageId == newId) {
+            recentMessages[recentMessages.indexOf(element)].isEdited = true;
+            recentMessages[recentMessages.indexOf(element)].messageContent =
+              newContent;
+          }
+        });
+        console.log("edited message!");
+      } else {
+        const role = await verifyValidity(socket.handshake.auth.token);
+        if (!(await verifyInGroup(role.uuid, groupId))) return;
+
+        if (role.role == "tokenError") return;
+
+        let responseError;
+
+        if (role.role == "Owner") {
+          const { error } = await supabase
+            .from("dms_messages")
+            .update({
+              // Edit the specific message thing
+              message_content: newContent,
+              is_edited: true,
+            })
+            .eq("message_id", newId);
+          responseError = error;
+        } else {
+          const { error } = await supabase
+            .from("dms_messages")
+            .update({
+              // Edit the specific message thing
+              message_content: newContent,
+              is_edited: true,
+            })
+            .eq("user_uuid", role.uuid)
+            .eq("message_id", newId);
+          responseError = error;
+        }
+
+        if (responseError) {
+          console.error(
+            "Could not update message (just couldn't idk): " +
+              responseError.message,
+          );
+        } else {
+          io.to(groupId).emit("dm message edited", newId, newContent);
+        }
+      }
+    },
+  );
 
   socket.on("request recent groups", async () => {
     const role = await verifyValidity(socket.handshake.auth.token);
