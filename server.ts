@@ -19,9 +19,8 @@ app.get("/", (req, res) => {
 
 const corsOptions = {
   origin: [
-    "https://goobapp.pages.dev",
-    "https://goobapp.org",
-    "https://www.goobapp.org",
+    /\.goobapp\.pages\.dev$/,
+    /\.goobapp\.org$/,
     "http://localhost:5173", // For development
   ],
   methods: ["GET", "POST", "OPTIONS"],
@@ -108,16 +107,15 @@ const immediateRateLimiter = new RateLimiterMemory({
 });
 
 const verifyValidity = async (
-  handshakeToken: string
+  handshakeToken: string,
 ): Promise<{ role: string | null; uuid: string }> => {
   if (!usingSupabase) {
     return { role: "Owner", uuid: handshakeToken };
   }
 
   const token = handshakeToken;
-  const { data: authData, error: authError } = await supabase.auth.getUser(
-    token
-  );
+  const { data: authData, error: authError } =
+    await supabase.auth.getUser(token);
   const userId = authData?.user?.id;
 
   if (authError || !userId) {
@@ -244,7 +242,7 @@ io.on("connection", (socket: Socket) => {
 
     if (responseError) {
       console.error(
-        "Error while attempting to delete message: " + responseError
+        "Error while attempting to delete message: " + responseError,
       );
     } else {
       io.emit("deleted message", messageID);
@@ -323,7 +321,7 @@ io.on("connection", (socket: Socket) => {
 
       if (responseError) {
         console.error(
-          "Could not update message (just couldn't idk): " + responseError
+          "Could not update message (just couldn't idk): " + responseError,
         );
       } else {
         io.emit("message edited", newId, newContent);
@@ -345,7 +343,7 @@ io.on("connection", (socket: Socket) => {
       const response = await SendMessageToAI(
         customPrompt,
         customAddedPrompt,
-        recentMessages
+        recentMessages,
       );
 
       if (!response) return;
@@ -597,7 +595,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
         // and throw an error to trigger the .catch block.
         return response.json().then((errorData) => {
           throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
+            errorData.message || `HTTP error! status: ${response.status}`,
           );
         });
       }
@@ -633,7 +631,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
           console.error(
             error
               ? `Supabase error: ${error.message}! Hint: ${error.hint}`
-              : "Supabase error!"
+              : "Supabase error!",
           );
 
           res.sendStatus(500); // error 500: internal server error
