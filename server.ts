@@ -19,8 +19,9 @@ app.get("/", (req, res) => {
 
 const corsOptions = {
   origin: [
-    /\.goobapp\.pages\.dev$/,
-    /\.goobapp\.org$/,
+    "https://goobapp.pages.dev",
+    "https://goobapp.org",
+    "https://www.goobapp.org",
     "http://localhost:5173", // For development
   ],
   methods: ["GET", "POST", "OPTIONS"],
