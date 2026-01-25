@@ -470,7 +470,7 @@ io.on("connection", (socket: Socket) => {
     const role = await verifyValidity(socket.handshake.auth.token);
     if (role.role == "tokenError") return;
 
-    if (!verifyInGroup(role.uuid, groupId)) return;
+    if (!(await verifyInGroup(role.uuid, groupId))) return;
 
     if (usingSupabase) {
       const { error } = await supabase
