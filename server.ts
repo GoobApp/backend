@@ -229,7 +229,10 @@ io.on("connection", (socket: Socket) => {
       return;
     }
 
-    socket.emit("receive older messages", await getMessages(prevOldestMessageId));
+    socket.emit(
+      "receive older messages",
+      await getMessages(prevOldestMessageId),
+    );
   });
 
   socket.on("request active users", async () => {
@@ -674,18 +677,9 @@ io.on("connection", (socket: Socket) => {
         if (error) {
           console.error("Could not insert message: " + error.message);
         }
-
-        recentMessages.push(msg);
-        if (recentMessages.length > maxMessageContext) recentMessages.shift();
-
-        SendMessageToAiIfNeeded(msg);
       } else {
         console.log("sending message!");
         io.to(dmId).emit("dm receive message", msg); // Emit it to everyone else!
-        recentMessages.push(msg);
-        if (recentMessages.length > maxMessageContext) recentMessages.shift();
-
-        SendMessageToAiIfNeeded(msg);
       }
     }
   });
