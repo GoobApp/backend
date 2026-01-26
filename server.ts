@@ -787,7 +787,7 @@ io.on("connection", (socket: Socket) => {
     const user = await verifyValidity(socket.handshake.auth.token);
     if (user.role == "tokenError") return;
 
-    if (!verifyInGroup(user.uuid, dmId)) return;
+    if (!(await verifyInGroup(user.uuid, dmId))) return;
 
     const { data, error } = await supabase
       .from("dms_messages")
@@ -830,7 +830,7 @@ io.on("connection", (socket: Socket) => {
     const role = await verifyValidity(socket.handshake.auth.token);
     if (role.role == "tokenError") return;
 
-    if (!verifyInGroup(role.uuid, groupId)) return;
+    if (!(await verifyInGroup(role.uuid, groupId))) return;
 
     const { data, error } = await supabase
       .from("dms_users")
@@ -861,7 +861,7 @@ io.on("connection", (socket: Socket) => {
     const role = await verifyValidity(socket.handshake.auth.token);
     if (role.role == "tokenError") return;
 
-    if (!verifyInGroup(role.uuid, groupId)) return;
+    if (!(await verifyInGroup(role.uuid, groupId))) return;
 
     const { data } = await supabase
       .from("profiles")
