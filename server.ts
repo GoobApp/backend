@@ -22,6 +22,7 @@ const corsOptions = {
     "https://goobapp.pages.dev",
     "https://goobapp.org",
     "https://www.goobapp.org",
+    "tauri://localhost" // Desktop app, might be bad for stuff but probably fine
     "http://localhost:5173", // For development
   ],
   methods: ["GET", "POST", "OPTIONS"],
