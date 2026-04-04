@@ -17,6 +17,10 @@ app.get("/", (req, res) => {
   res.redirect("https://goobapp.org");
 });
 
+app.get("/healthz", (req, res) => {
+  res.status(200).send('OK');
+});
+
 const corsOptions = {
   origin: [
     "https://goobapp.pages.dev",
