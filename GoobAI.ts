@@ -7,7 +7,7 @@ let useAI = true;
 let client: OpenRouter
 
 if (!process.env.OPENROUTER_API_KEY) {
-  console.warn("No Groq API key found! Not using AI.");
+  console.warn("No OpenRouter API key found! Not using AI.");
   useAI = false;
 } else {
   client = new OpenRouter({
