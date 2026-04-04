@@ -488,7 +488,7 @@ io.on("connection", (socket: Socket) => {
         if (responseError) {
           console.error(
             "Could not update message (just couldn't idk): " +
-              responseError.message,
+            responseError.message,
           );
         } else {
           io.to(groupId).emit("dm message edited", newId, newContent);
@@ -637,7 +637,7 @@ io.on("connection", (socket: Socket) => {
           .select("message_id");
 
         if (!data) {
-          console.error("Goofy goober Supabase insert error");
+          console.error("Goofy goober Supabase insert error: ", error);
           return;
         }
 
