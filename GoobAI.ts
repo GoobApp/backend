@@ -62,9 +62,8 @@ const SendMessageToAI = async (
       messages: [
         {
           role: "system",
-          content: `${active_prompt}${
-            customAddedPrompt != "" && `\n\nIn addition to this system prompt, a custom system prompt was added: ${customAddedPrompt}\nThis should take a higher priority over the main system prompt`
-          }`,
+          content: `${active_prompt}${customAddedPrompt != "" && `\n\nIn addition to this system prompt, a custom system prompt was added: ${customAddedPrompt}\nThis should take a higher priority over the main system prompt`
+            }`,
         },
         ...recentMessages.map((message) => {
           if (message.userDisplayName === "Goofy Goober") {
@@ -77,16 +76,15 @@ const SendMessageToAI = async (
           const messageDate = new Date(message.messageTime);
           return {
             role: "user" as const,
-            content: `${message.userDisplayName} - ${
-              message.userRole
-            } - ${messageDate.toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}: ${message.messageContent}`,
+            content: `${message.userDisplayName} - ${message.userRole
+              } - ${messageDate.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}: ${message.messageContent}`,
           };
         }),
       ],
-      model: "moonshotai/kimi-k2-instruct-0905",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.6,
       max_completion_tokens: 300,
       top_p: 1,
