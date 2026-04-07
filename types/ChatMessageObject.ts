@@ -1,11 +1,13 @@
 export default interface ChatMessage {
   userDisplayName: string;
   userProfilePicture: string;
-  userRole: string | null;
   userUUID: string;
+  userRole: string | null;
   messageContent: string;
   messageImageUrl: string;
-  messageTime: number;
+  messageTime: Date;
   messageId: number;
   isEdited: boolean;
+  replyingTo: number | null;
+  isReply: boolean;
 }

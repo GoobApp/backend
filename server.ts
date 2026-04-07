@@ -63,6 +63,8 @@ const mapData = (data: any) => {
     userProfilePicture: data.profiles.profile_image_url,
     userRole: data.profiles.role,
     messageImageUrl: "",
+    replyingTo: data.replying_to,
+    isReply: data.is_reply,
   };
 
   return msg;
@@ -186,6 +188,8 @@ const getMessages = async (prevOldestMessageId: number | null) => {
       messageId: row.message_id,
       messageTime: row.created_at,
       isEdited: row.is_edited,
+      replyingTo: row.replying_to,
+      isReply: row.is_reply,
     };
   });
 
@@ -204,33 +208,6 @@ io.on("connection", (socket: Socket) => {
   socket.on("load more messages", async (prevOldestMessageId) => {
     const role = await verifyValidity(socket.handshake.auth.token);
     if (role.role == "tokenError") return;
-
-    if (!usingSupabase) {
-      console.log("Requesting older messages!");
-      let msg: ChatMessage = {
-        messageContent: "yo",
-        messageId: Date.now(), // This gets autoset by supabase but no reason not to set it also here (local testing)
-        messageImageUrl: "",
-        userRole: "Bot",
-        messageTime: Date.now(),
-        userDisplayName: "Goofy Goober",
-        userProfilePicture:
-          "https://raw.githubusercontent.com/GoobApp/backend/refs/heads/main/goofy-goober.png",
-        userUUID: gooberUUID,
-        isEdited: false,
-      };
-      socket.emit("receive older messages", [
-        msg,
-        msg,
-        msg,
-        msg,
-        msg,
-        msg,
-        msg,
-        msg,
-      ]);
-      return;
-    }
 
     socket.emit(
       "receive older messages",
@@ -489,7 +466,7 @@ io.on("connection", (socket: Socket) => {
         if (responseError) {
           console.error(
             "Could not update message (just couldn't idk): " +
-              responseError.message,
+            responseError.message,
           );
         } else {
           io.to(groupId).emit("dm message edited", newId, newContent);
@@ -603,6 +580,7 @@ io.on("connection", (socket: Socket) => {
   const gooberUUID = "d63332a2-cb49-4da0-9095-68e1ee8f20e9"; // feels bad putting a uuid in there like this but whatever
 
   const SendMessageToAiIfNeeded = async (message: ChatMessage) => {
+    // TODO: the replying to should also work if replied to goob
     if (message.messageContent.toLowerCase().includes("@goob")) {
       const response = await SendMessageToAI(
         customPrompt,
@@ -617,12 +595,14 @@ io.on("connection", (socket: Socket) => {
         messageId: Date.now(), // This gets autoset by supabase but no reason not to set it also here (local testing)
         messageImageUrl: "",
         userRole: "Bot",
-        messageTime: Date.now(),
+        messageTime: new Date(),
         userDisplayName: "Goofy Goober",
         userProfilePicture:
           "https://raw.githubusercontent.com/GoobApp/backend/refs/heads/main/goofy-goober.png",
         userUUID: gooberUUID,
         isEdited: false,
+        replyingTo: message.replyingTo,
+        isReply: message.isReply,
       };
 
       if (usingSupabase) {
@@ -686,6 +666,8 @@ io.on("connection", (socket: Socket) => {
             // Insert a message into the Supabase table
             user_uuid: user.uuid,
             message_content: msg.messageContent,
+            replying_to: msg.replyingTo,
+            is_reply: msg.isReply,
             message_image_url: msg.messageImageUrl,
           })
           .select("*,profiles(username,profile_image_url)")
@@ -753,6 +735,8 @@ io.on("connection", (socket: Socket) => {
             user_uuid: user.uuid,
             message_content: msg.messageContent,
             message_image_url: msg.messageImageUrl,
+            replying_to: msg.replyingTo,
+            is_reply: msg.isReply,
             dm_id: dmId,
           })
           .select("*,profiles(username,profile_image_url)")
@@ -823,6 +807,8 @@ io.on("connection", (socket: Socket) => {
         messageId: row.message_id,
         messageTime: row.created_at,
         isEdited: row.is_edited,
+        replyingTo: row.replying_to,
+        isReply: row.is_reply,
       };
     });
 
@@ -1047,16 +1033,18 @@ app.post("/upload", upload.single("image"), async (req, res) => {
       return response.json();
     })
     .then(async (img) => {
-      let message = {
+      let message: ChatMessage = {
         userDisplayName: "Image",
         userProfilePicture: "",
         userUUID: "",
         userRole: null,
         messageContent: "",
         messageImageUrl: img.data.url,
-        messageTime: Date.now(),
+        messageTime: new Date(),
         messageId: 0,
         isEdited: false,
+        replyingTo: null,
+        isReply: false,
       };
 
       // Only insert if actually using Supabase!
@@ -1103,6 +1091,8 @@ app.post("/upload", upload.single("image"), async (req, res) => {
         message.userDisplayName = data.profiles.username;
         message.userProfilePicture = data.profiles.profile_image_url;
         message.userRole = data.profiles.role;
+        message.replyingTo = null;
+        message.isReply = false;
 
         if (error) {
           console.error("Could not insert message: " + error.message);

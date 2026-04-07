@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX ON "public"."dms_users" USING btree ("user_uuid", "dm_id");
