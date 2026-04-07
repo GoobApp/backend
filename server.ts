@@ -14,6 +14,10 @@ const app = express(); // Create a new express app instance
 const server = http.createServer(app); // Create an HTTP server using the new express app as its handler
 
 app.get("/", (req, res) => {
+  res.redirect("https://goobapp.org");
+});
+
+app.get("/healthz", (req, res) => {
   res.status(200).send('OK');
 });
 
