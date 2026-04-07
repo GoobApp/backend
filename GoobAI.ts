@@ -1,17 +1,17 @@
-import { OpenRouter } from '@openrouter/sdk';
+import Groq from "groq-sdk";
 import ChatMessage from "./types/ChatMessageObject";
 
 require("dotenv").config();
 
 let useAI = true;
-let client: OpenRouter
+let client: Groq;
 
-if (!process.env.OPENROUTER_API_KEY) {
+if (!process.env.GROQ_API_KEY) {
   console.warn("No Groq API key found! Not using AI.");
   useAI = false;
 } else {
-  client = new OpenRouter({
-    apiKey: process.env.OPENROUTER_API_KEY,
+  client = new Groq({
+    apiKey: process.env.GROQ_API_KEY, // This is the default and can be omitted
   });
 }
 let system_prompt = "";
@@ -58,47 +58,45 @@ const SendMessageToAI = async (
     customSystemPrompt === null ? system_prompt : customSystemPrompt;
 
   try {
-    const chatCompletion = await client.chat.send(
-      {
-        chatRequest: {
-          model: "qwen/qwen3.6-plus:free",
-          messages: [
-            {
-              role: "system",
-              content: `${active_prompt}${customAddedPrompt ? `\n\nIn addition...` : ""}`,
-            },
-            ...recentMessages.map((message) => ({
-              role:
-                message.userDisplayName === "Goofy Goober"
-                  ? ("assistant" as const)
-                  : ("user" as const),
-              content: message.messageContent,
-            })),
-          ],
-          temperature: 0.6,
-          maxTokens: 300,
-          topP: 1,
-          reasoning: { effort: "none" }, // No thoughts, head empty, very speedy!!
-          stream: false,
+    const chatCompletion = await client.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `${active_prompt}${
+            customAddedPrompt != "" && `\n\nIn addition to this system prompt, a custom system prompt was added: ${customAddedPrompt}\nThis should take a higher priority over the main system prompt`
+          }`,
         },
-      },
-      {
-        retries: { strategy: "none" },
-      }
-    );
+        ...recentMessages.map((message) => {
+          if (message.userDisplayName === "Goofy Goober") {
+            return {
+              role: "assistant" as const,
+              content: message.messageContent,
+            };
+          }
 
-    const content = chatCompletion.choices?.[0]?.message?.content;
-
-    if (!content) {
-      console.warn("Received empty content from model.");
-      return "Sorry, an error occurred :goob:";
-    }
-
-    return content.slice(0, 1200);
-  } catch (error) {
+          const messageDate = new Date(message.messageTime);
+          return {
+            role: "user" as const,
+            content: `${message.userDisplayName} - ${
+              message.userRole
+            } - ${messageDate.toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}: ${message.messageContent}`,
+          };
+        }),
+      ],
+      model: "moonshotai/kimi-k2-instruct-0905",
+      temperature: 0.6,
+      max_completion_tokens: 300,
+      top_p: 1,
+      stream: false,
+    });
+    return chatCompletion.choices[0].message.content?.slice(0, 1200);
+  } catch (Error) {
     return "Sorry, an error occurred :goob:";
   }
-}
+};
 
 export default SendMessageToAI;
 
