@@ -84,7 +84,7 @@ const SendMessageToAI = async (
           };
         }),
       ],
-      model: "llama-3.3-70b-versatile",
+      model: "qwen/qwen3.6-27b",
       temperature: 0.6,
       max_completion_tokens: 300,
       top_p: 1,
